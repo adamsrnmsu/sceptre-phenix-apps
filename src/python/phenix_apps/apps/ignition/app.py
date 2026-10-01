@@ -73,6 +73,16 @@ class RtuDeviceConfig(BaseModel):
 
     model_config = {"extra": "ignore"}
 
+    @field_validator("name")
+    @classmethod
+    def _validate_device_name(cls, v: str | None) -> str | None:
+        if v is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_ -]{0,62}", v):
+            raise ValueError(
+                "device names may only contain letters, digits, spaces, '_' and "
+                "'-', and must start with a letter or digit"
+            )
+        return v
+
     @property
     def resolved_name(self) -> str:
         return self.name or self.hostname
@@ -359,7 +369,7 @@ class Ignition(AppBase):
         injects = []
 
         for device in devices:
-            device_dir = Path(host_dir, "devices", device["name"])
+            device_dir = utils.safe_join(host_dir, "devices", device["name"])
             device_dir.mkdir(parents=True, exist_ok=True)
 
             with Path(device_dir, "config.json").open("w") as f:

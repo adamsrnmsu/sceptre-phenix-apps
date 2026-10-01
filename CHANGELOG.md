@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: `configure()` and `pre_start()` are stage classes, `ConfigureStage` and `PreStart`, sharing pre-start state through `PreStartState`.
 - **SCEPTRE App**: The device-type table is `configs/infrastructures.yaml`; adding a device type needs no code change.
 - **SCEPTRE App**: Injections are declared with `Sceptre.inject()`, and all of them in the configure stage.
+- **Common**: `utils.abs_path()` always returns a `pathlib.Path`; with a relative path it used to return a `str`.
 - **SCEPTRE App**: Type annotations on every app function, `Final` on module constants.
 - **SCEPTRE App**: Validation failures raise `error.AppError` instead of calling `sys.exit(1)`, matching the app contract.
 - **SCEPTRE App**: `metadata.simulator` matches case-insensitively in both stages, as validation already did; a miscased name used to silently get the default config.
@@ -35,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: A `power-transmission` inverter raised `TypeError`, passing `infrastructure` twice into `Device()`.
 - **SCEPTRE App**: A `fep` without a mgmt interface raised `UnboundLocalError`, or reused the previous fep's endpoints.
 - **SCEPTRE App**: A historian on a subnet with no OPC server was configured with an unrelated OPC's tag list and no address to collect from. It now gets no tags and a warning naming the subnet.
+
+### Security
+- **Common**: New `utils.validate_hostname()` and `utils.safe_join()`. Hostnames from scenario metadata are validated against the phenix node-name rules before they are used in file paths, and every host-side file path built from metadata is joined through `safe_join()`, which rejects `..` and absolute components that would escape the app's directory.
+- **Common**: `mm_send()` and `mm_recv()` keep VM-side paths inside the miniccc mount, and `mm_recv()` requires an absolute, normalized host destination.
+- **Apps**: `AppBase.add_node()`, caldera, helics, ignition, otsim, protonuke, scale (and its `builtin` and `wind_turbine` plugins), sceptre and wireguard validate hostnames and device names before writing per-host files. The Scale `hostname_prefix` and wind turbine `name` fields and the Ignition device `name` are now restricted to hostname-safe characters.
+- **Apps**: protonuke `args` and wireguard interface and peer fields may not contain newlines, which would inject extra lines into the generated config. Generated wireguard configs, which hold the private key, are written `0600`. The sceptre Windows startup scripts are `0755` instead of world-writable `0777`.
+- **Apps**: caldera raises a clear error when a Windows agent is requested but `windows_agent.mako` is missing.
+- **SCORCH**: The `cc` `recv` destination, `ssh` SFTP downloads and `providerdata` config fetches can no longer write or read outside the component's run directory.
 
 ## [2.0.0] - 2026-03-04
 

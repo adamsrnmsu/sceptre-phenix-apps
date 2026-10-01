@@ -78,7 +78,7 @@ spec:
 | Option                | Default          | Description                                          |
 |-----------------------|------------------|------------------------------------------------------|
 | `hostname`            | (required)       | Topology hostname of the outstation.                 |
-| `name`                | hostname         | Ignition device name; tags reference it (e.g. `[custom-name]AnalogInput0`). |
+| `name`                | hostname         | Ignition device name; tags reference it (e.g. `[custom-name]AnalogInput0`). Letters, digits, spaces, `_` and `-`, starting with a letter or digit, at most 63 characters. |
 | `port`                | `20000`          | Outstation TCP port.                                 |
 | `source_address`      | `1`              | DNP3 master address (ot-sim default).                        |
 | `destination_address` | `1024`           | DNP3 outstation address (ot-sim default).            |
