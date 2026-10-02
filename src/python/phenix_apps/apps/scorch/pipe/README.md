@@ -22,6 +22,10 @@ stages: start, cleanup
 > The `via`, `mode`, and `log` options are considered top-level commands and
 > if used, will be executed *before* any data is written to the pipe
 
+> [!IMPORTANT]
+> A `via` program runs on the phenix host, so it is refused unless
+> `PHENIX_SCORCH_HOST_VALIDATORS=1` is set in the phenix environment.
+
 ## Metadata Options
 
 ```yaml

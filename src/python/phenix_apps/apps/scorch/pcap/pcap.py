@@ -1,4 +1,5 @@
 import shutil
+import subprocess
 from pathlib import Path
 
 from phenix_apps.apps.scorch import ComponentBase
@@ -253,7 +254,13 @@ class PCAP(ComponentBase):
                 logger.info(
                     f"running PCAP --> JSON conversion (source={pcap_path.name}, dest={json_path.name})"
                 )
-                utils.run_command(f"tshark -r {pcap_path} -T ek > {json_path}")
+                with json_path.open("w") as json_file:
+                    subprocess.run(
+                        ["tshark", "-r", str(pcap_path), "-T", "ek"],
+                        stdout=json_file,
+                        stderr=subprocess.DEVNULL,
+                        check=False,
+                    )
         else:
             logger.info("PCAP --> JSON conversion disabled")
 

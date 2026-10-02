@@ -1,13 +1,14 @@
-import os
 import subprocess
 import time
 import uuid
+from pathlib import Path
 
 from box import Box
 
 from phenix_apps.apps.scorch import ComponentBase
 from phenix_apps.common import utils
 from phenix_apps.common.logger import logger
+from phenix_apps.common.settings import SCORCH_HOST_VALIDATORS
 
 # This can be changed here to reflect your directory structure on hosts as a default.
 # This is overwritten if a value is provided via goartPath
@@ -102,34 +103,39 @@ class AtomicRedTeam(ComponentBase):
             utils.mm_exec_wait(mm, hostname, cmd)
             time.sleep(5)
             logger.info(f"retrieving results: {out_file}")
-            results_file = os.path.join(self.base_dir, f"{hostname}.json")
+            results_file = str(Path(self.base_dir) / f"{hostname}.json")
 
             try:
                 utils.mm_recv(mm, hostname, out_file, results_file)
                 logger.info(f"results_file path: {results_file}")
-                logger.info(f"results_file exists: {os.path.exists(results_file)}")
+                logger.info(f"results_file exists: {Path(results_file).exists()}")
             except Exception as ex:
                 raise RuntimeError(
                     f"failed to get results file from {hostname}: {ex}"
                 ) from ex
 
             validator = self.metadata.get("validator", None)
-            if validator:
+            if validator and not SCORCH_HOST_VALIDATORS:
+                logger.warning(
+                    f"skipping host-side validator for {hostname}: set "
+                    "PHENIX_SCORCH_HOST_VALIDATORS=1 to allow validators to run on the host"
+                )
+            elif validator:
                 logger.info(f"validating results from {hostname}")
 
-                tempfile = f"/tmp/{uuid.uuid4()!s}.sh"
-                with open(tempfile, "w") as tf:
+                tempfile = Path(f"/tmp/{uuid.uuid4()!s}.sh")
+                with tempfile.open("w") as tf:
                     tf.write(validator)
 
                 results = Box.from_json(filename=results_file)
 
                 proc = subprocess.run(
-                    ["sh", tempfile, hostname],
+                    ["sh", str(tempfile), hostname],
                     input=results.Executor.ExecutedCommand.results.encode(),
                     capture_output=True,
                 )
 
-                os.remove(tempfile)
+                tempfile.unlink()
 
                 if proc.returncode != 0:
                     stderr = proc.stderr.decode()

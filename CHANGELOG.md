@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: A `fep` without a mgmt interface raised `UnboundLocalError`, or reused the previous fep's endpoints.
 - **SCEPTRE App**: A historian on a subnet with no OPC server was configured with an unrelated OPC's tag list and no address to collect from. It now gets no tags and a warning naming the subnet.
 
+### Security
+- **Common**: `run_command()` no longer uses a shell; `mm_compute_cmd()` rejects multi-token names.
+- **Mirror, mgmt_tap, SCORCH**: Metadata is validated before reaching `ovs-vsctl`, minimega or `tshark`; commands run as argument vectors, not `bash -c`.
+- **SCORCH**: kafka's PID file leaves `/tmp`; ssh takes optional `known_hosts`.
+- **SCORCH art/cc/pipe**: **Breaking:** host-side commands need `PHENIX_SCORCH_HOST_VALIDATORS=1`.
+
 ## [2.0.0] - 2026-03-04
 
 ### Changed

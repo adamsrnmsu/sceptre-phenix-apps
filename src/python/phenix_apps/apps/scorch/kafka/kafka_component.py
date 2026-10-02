@@ -19,14 +19,18 @@ class Kafka(ComponentBase):
             uuid.NAMESPACE_DNS, f"{self.exp_name}-{self.name}-{config_str}"
         )
 
+        # Not under base_dir: that is per loop and count, and configure must see
+        # the PID file a previous loop wrote. Not /tmp, which is world-writable.
         self.pid_file = (
-            f"/tmp/phenix-scorch-kafka-{self.exp_name}-{component_uuid.hex}.pid"
+            Path(self.files_dir)
+            / "scorch"
+            / f"phenix-scorch-kafka-{self.exp_name}-{component_uuid.hex}.pid"
         )
         self.execute_stage()
 
     def configure(self):
         # if the deterministic PID file already exists, don't configure the component again
-        if os.path.exists(self.pid_file):
+        if self.pid_file.exists():
             logger.info(f"User component {self.name} already configured, skipping")
             return
 
@@ -51,11 +55,11 @@ class Kafka(ComponentBase):
         # get and output the output directory to the logger
         output_dir = self.base_dir
         logger.info(f"Output Directory: {output_dir}")
-        os.makedirs(output_dir, exist_ok=True)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         if csv_bool:
-            self.path = os.path.join(output_dir, f"{self.name}_output.csv")
+            self.path = str(Path(output_dir) / f"{self.name}_output.csv")
         else:
-            self.path = os.path.join(output_dir, f"{self.name}_output.ndjson")
+            self.path = str(Path(output_dir) / f"{self.name}_output.ndjson")
 
         kafka_ips_str = ",".join(kafka_ips)
         topics_str = json.dumps(topics)
@@ -89,9 +93,9 @@ class Kafka(ComponentBase):
             logger.error(f"Error running listener executable. See: {e}")
 
     def _create_pid_file(self, pid):
-        # writes PID to unique .pid file under /tmp directory
+        # writes PID to the unique .pid file
         try:
-            with open(self.pid_file, "w+") as f:
+            with self.pid_file.open("w+") as f:
                 f.write(str(pid))
         except Exception as e:
             logger.error(
@@ -104,9 +108,9 @@ class Kafka(ComponentBase):
         # reads and deletes PID file, returns PID
         pid = 0
         try:
-            with open(self.pid_file) as f:
+            with self.pid_file.open() as f:
                 pid = int(f.readline().rstrip())
-            os.remove(self.pid_file)
+            self.pid_file.unlink()
             return pid
         except Exception as e:
             logger.error(
@@ -121,6 +125,19 @@ class Kafka(ComponentBase):
         if not pid:
             logger.info("No PID, component already cleaned up")
             exit()
+
+        try:
+            with Path(f"/proc/{pid}/cmdline").open("rb") as f:
+                cmdline = f.read().decode(errors="replace")
+        except OSError as e:
+            logger.error(f"Could not read cmdline for PID {pid}, not killing. See: {e}")
+            return
+
+        if "kafka_listener.py" not in cmdline:
+            logger.error(
+                f"PID {pid} does not appear to be a kafka listener process, not killing"
+            )
+            return
 
         try:
             os.kill(pid, 9)

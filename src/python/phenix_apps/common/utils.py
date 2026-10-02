@@ -6,6 +6,7 @@ import os
 import os.path
 import random
 import re
+import shlex
 import shutil
 import socket
 import stat
@@ -26,6 +27,7 @@ import minimega
 from elasticsearch import Elasticsearch
 
 import phenix_apps.common.settings as phenix_settings
+from phenix_apps.common.error import AppError
 from phenix_apps.common.logger import logger
 
 
@@ -1061,9 +1063,12 @@ def mm_compute_cmd(mm: minimega.minimega, **kwargs) -> list[dict]:
         if param not in kwargs:
             raise ValueError(f"Missing required parameter: {param}")
 
-    experiment = kwargs["experiment"]
+    experiment = _validate_mm_token(kwargs["experiment"])
     computes = kwargs.get("computes", "all")  # 'all' or comma-separated list
     computes_list = computes.split(",")
+
+    for compute in computes_list:
+        _validate_mm_token(compute)
     command = kwargs["command"]
     command_type = kwargs.get("command_type", "shell")
     ignore_error = kwargs.get("ignore_error", False)
@@ -1095,6 +1100,17 @@ def mm_compute_cmd(mm: minimega.minimega, **kwargs) -> list[dict]:
             mm.namespace(original_namespace)
 
     return results
+
+
+def _validate_mm_token(value: str) -> str:
+    """
+    Ensure a value spliced into a raw minimega control-socket command is a
+    single benign token (no whitespace, newlines, or quotes).
+    """
+    if not value or re.search(r"[\s'\"]", value):
+        raise AppError(f"invalid minimega command token '{value}'")
+
+    return value
 
 
 def _mm_socket_cmd(cmd: str, ignore_error: bool = False) -> list[str]:
@@ -1260,8 +1276,10 @@ def mm_delete_file(
         )
 
 
-def run_command(cmd: str, timeout: float | None = None) -> str:
-    result = subprocess.check_output(cmd, shell=True, timeout=timeout)
+def run_command(cmd: str | list[str], timeout: float | None = None) -> str:
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
+    result = subprocess.check_output(cmd, timeout=timeout)
     if isinstance(result, bytes):
         result = result.decode()
     return result
@@ -1348,7 +1366,17 @@ def trim_pcap(
     # YYYY-MM-DDThh:mm:ss.nnnnnnnnn[Z|+-hh:mm]
     # editcap -A start-time -B stop-time <infile> <outfile>
     run_command(
-        f"editcap -F {cap_type} -A {start_time.isoformat()} -B {end_time.isoformat()} {src.as_posix()} {edited.as_posix()}"
+        [
+            "editcap",
+            "-F",
+            cap_type,
+            "-A",
+            start_time.isoformat(),
+            "-B",
+            end_time.isoformat(),
+            src.as_posix(),
+            edited.as_posix(),
+        ]
     )
 
     trimmed_size = edited.stat().st_size
@@ -1375,7 +1403,7 @@ def pcap_capinfos(pcap_path: str | Path) -> dict:
 
     {'File name': './br14-0.pcap', 'File type': 'pcap', 'File encapsulation': 'ether', 'File time precision': 'microseconds', 'Packet size limit': '1600', 'Packet size limit min (inferred)': 'n/a', 'Packet size limit max (inferred)': 'n/a', 'Number of packets': '37', 'File size (bytes)': '3862', 'Data size (bytes)': '3246', 'Capture duration (seconds)': '28.975097', 'Start time': '2024-02-21 22:27:36.592584', 'End time': '2024-02-21 22:28:05.567681', 'Data byte rate (bytes/sec)': '112.03', 'Data bit rate (bits/sec)': '896.22', 'Average packet size (bytes)': '87.73', 'Average packet rate (packets/sec)': '1.28', 'SHA256': '2b07c65ec9f00c6ea3334ccd1f49074c4f643c68776a3a8cae990e824cbbf72a', 'SHA1': 'dcc7cb3f070b8757693a30a6e75ddc5542686072', 'Strict time order': 'True', 'Capture hardware': '', 'Capture oper-sys': '', 'Capture application': '', 'Capture comment': ''}
     """
-    capinfo_output = run_command(f"capinfos -T -M {pcap_path}")
+    capinfo_output = run_command(["capinfos", "-T", "-M", str(pcap_path)])
 
     io_obj = StringIO(capinfo_output)
     reader = csv.DictReader(io_obj, delimiter="\t")  # tab-delimited
