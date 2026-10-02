@@ -22,14 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: Type annotations on every app function, `Final` on module constants.
 - **SCEPTRE App**: Validation failures raise `error.AppError` instead of calling `sys.exit(1)`, matching the app contract.
 - **SCEPTRE App**: `metadata.simulator` matches case-insensitively in both stages, as validation already did; a miscased name used to silently get the default config.
-- **Build System**: `package-data` now ships the SunSpec models, the `mydesigner` SCADA tree and the infrastructure table; an installed wheel was missing all three.
+- **Build System**: `package-data` now ships the `mydesigner` SCADA tree and the infrastructure table; an installed wheel was missing both.
 
 ### Removed
 - **SCEPTRE App**: The `reg_config` manual register-map path. It was dead code: the app never populated it, so every device always took the automatic numbering branch. Output is unchanged.
+- **SCEPTRE App**: SunSpec support: the `sunspec` field-device protocol, its register generator and bundled SMDX models, the `sunspec.mako` and gobennu startup templates, and the SunSpec branches of the FEP template. It had been broken for years without anyone noticing, and maintainers confirmed it is unused. A field device that still declares `metadata.sunspec` now fails validation with an error that says so. Output for every other protocol is unchanged.
 
 ### Fixed
 - **SCEPTRE App**: With more than one PowerWorld provider, only the last one's `hil_tags` reached the object list, and only the last one's `objects.txt` was written. Tags now aggregate across providers and every PowerWorld provider gets the combined `objects.txt`.
-- **SCEPTRE App**: Every `sunspec` inverter raised `KeyError`: the SunSpec register mappings are keyed `PowerDistribution` but received `power-distribution`. The whole protocol was unusable.
 - **SCEPTRE App**: `fep` hosts raised `TypeError`, built without the required `device_subtype`.
 - **SCEPTRE App**: Per-device register overrides raised `RuntimeError` in `SceptreMetadataParser`, which popped keys while iterating a live dict view.
 - **SCEPTRE App**: A `power-transmission` inverter raised `TypeError`, passing `infrastructure` twice into `Device()`.
