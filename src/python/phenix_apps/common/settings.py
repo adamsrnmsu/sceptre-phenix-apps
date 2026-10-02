@@ -39,3 +39,7 @@ CC_CMD_GRACE = float(os.getenv("PHENIX_CC_CMD_GRACE", 0.0))
 # Seconds before the first "still waiting" log line, doubling up to the max
 CC_LOG_INTERVAL = float(os.getenv("PHENIX_CC_LOG_INTERVAL", 10.0))
 CC_LOG_MAX_INTERVAL = float(os.getenv("PHENIX_CC_LOG_MAX_INTERVAL", 320.0))
+
+# Allow SCORCH components to run scenario-supplied commands on the phenix host
+# (art and cc validators, pipe via). Off unless set to exactly "1".
+SCORCH_HOST_VALIDATORS = os.getenv("PHENIX_SCORCH_HOST_VALIDATORS") == "1"

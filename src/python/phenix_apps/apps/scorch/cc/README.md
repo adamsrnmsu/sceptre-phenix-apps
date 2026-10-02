@@ -38,6 +38,12 @@ metadata:
 > validator script should be written to process STDIN. Anything the validator
 > script writes to STDERR will be available to the user if the validation fails.
 
+> [!IMPORTANT]
+> Validators run as shell scripts on the phenix host, not in the VM, so they are
+> off by default. Set `PHENIX_SCORCH_HOST_VALIDATORS=1` in the phenix
+> environment to run them; otherwise each validator is skipped with a warning
+> and the result is not validated.
+
 ## Types
 - VM-specific command types
   - `exec`: execute a command (`cc exec`)

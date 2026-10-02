@@ -5,6 +5,7 @@ import uuid
 from phenix_apps.apps.scorch import ComponentBase
 from phenix_apps.common import utils
 from phenix_apps.common.logger import logger
+from phenix_apps.common.settings import SCORCH_HOST_VALIDATORS
 
 
 class CC(ComponentBase):
@@ -112,7 +113,12 @@ class CC(ComponentBase):
                         if results["stdout"]:
                             logger.info(f"STDOUT Output: {results['stdout']}")
 
-                        if validator:
+                        if validator and not SCORCH_HOST_VALIDATORS:
+                            logger.warning(
+                                f"skipping host-side validator for command '{cmd.args}' on VM {vm.hostname}: "
+                                "set PHENIX_SCORCH_HOST_VALIDATORS=1 to allow validators to run on the host"
+                            )
+                        elif validator:
                             logger.info(f"validating results from '{cmd.args}'")
 
                             tempfile = f"/tmp/{uuid.uuid4()!s}.sh"

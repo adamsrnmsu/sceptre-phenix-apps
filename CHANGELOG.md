@@ -36,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: A `fep` without a mgmt interface raised `UnboundLocalError`, or reused the previous fep's endpoints.
 - **SCEPTRE App**: A historian on a subnet with no OPC server was configured with an unrelated OPC's tag list and no address to collect from. It now gets no tags and a warning naming the subnet.
 
+### Security
+- **Common**: `utils.run_command()` no longer runs through a shell: a string is split with `shlex` and executed as an argument vector, and a list is passed through. Shell operators such as pipes and redirects are not interpreted.
+- **Common**: `mm_compute_cmd()` rejects an experiment or compute name that is not a single token before splicing it into a minimega command.
+- **Mirror App** (Go), **mgmt_tap App**, **SCORCH erspan, tcpdump, mm**: Bridge, interface, VLAN, IP, capture filename and capture filter values from metadata are validated before they reach `ovs-vsctl`, minimega or `tshark`.
+- **SCORCH collector, mm, pcap, tcpdump**: `phenix`, `tshark`, `editcap` and `capinfos` run as argument vectors instead of `bash -c` strings.
+- **SCORCH kafka**: The listener PID file moves out of world-writable `/tmp` into the experiment's SCORCH files directory, and `cleanup` only kills the PID if it is still a kafka listener.
+- **SCORCH ssh**: New optional `known_hosts` metadata. When set, unknown host keys are rejected; when absent, the host key is still trusted automatically but a warning is logged.
+- **SCORCH art, cc, pipe**: **Breaking:** scenario-supplied commands that run on the phenix host (`art` and `cc` validators, `pipe` `via`) are off by default. Set `PHENIX_SCORCH_HOST_VALIDATORS=1` to allow them. Without it, validators are skipped with a warning and a `via` fails the component.
+
 ## [2.0.0] - 2026-03-04
 
 ### Changed

@@ -1,5 +1,7 @@
 from phenix_apps.apps.scorch import ComponentBase
+from phenix_apps.common import error
 from phenix_apps.common.logger import logger
+from phenix_apps.common.settings import SCORCH_HOST_VALIDATORS
 
 
 class Pipe(ComponentBase):
@@ -24,6 +26,11 @@ class Pipe(ComponentBase):
             raise ValueError("pipe not specified but is required")
 
         if via:
+            if not SCORCH_HOST_VALIDATORS:
+                raise error.AppError(
+                    f"pipe 'via' runs '{via}' as a command on the host; set "
+                    "PHENIX_SCORCH_HOST_VALIDATORS=1 to allow host-side commands"
+                )
             logger.info(f"setting via '{via}' for pipe '{pipe}'")
             self.mm.pipe_via(pipe, via)
 

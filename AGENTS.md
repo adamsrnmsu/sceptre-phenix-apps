@@ -130,6 +130,7 @@ Most environment variables are read in
 | `PHENIX_DIR`, `PHENIX_TEMP_DIR` | phēnix data and scratch directories |
 | `MM_FILEPATH`, `MM_SOCKET_PATH` | minimega file root and command socket |
 | `PHENIX_CC_*` | miniccc polling rates and timeout grace periods |
+| `PHENIX_SCORCH_HOST_VALIDATORS` | Literal `1` lets the SCORCH `art` and `cc` validators and the `pipe` `via` run scenario-supplied commands on the host; off otherwise |
 
 Read elsewhere: `PHENIX_DRYRUN` (literal `true`) in
 `src/python/phenix_apps/apps/__init__.py`,

@@ -1,9 +1,11 @@
 import ipaddress
+import re
 import socket
 
 import minimega
 
 from phenix_apps.apps import AppBase
+from phenix_apps.common.error import AppError
 from phenix_apps.common.logger import logger
 from phenix_apps.common.utils import _mm_init, mm_compute_cmd, mm_host_info
 
@@ -25,6 +27,10 @@ class MgmtTap(AppBase):
     """
 
     DEFAULT_BRIDGE = "phenix"
+
+    # OVS bridge names are single tokens of at most 15 characters; anything
+    # else would end up interpolated into minimega tap commands.
+    BRIDGE_NAME_REGEX = re.compile(r"[A-Za-z0-9_.-]{1,15}")
 
     def __init__(self, name: str, stage: str, dryrun: bool = False) -> None:
         super().__init__(name, stage, dryrun)
@@ -57,15 +63,24 @@ class MgmtTap(AppBase):
         bridge = self.metadata.get("bridge", None) if self.metadata else None
         if bridge:
             logger.debug(f"Using bridge '{bridge}' from app metadata")
-            return bridge
+            return self._validate_bridge(bridge)
 
         bridge = self.experiment.spec.get("defaultBridge", None)
         if bridge:
             logger.debug(f"Using experiment default bridge '{bridge}'")
-            return bridge
+            return self._validate_bridge(bridge)
 
         logger.debug(f"Falling back to bridge '{self.DEFAULT_BRIDGE}'")
         return self.DEFAULT_BRIDGE
+
+    def _validate_bridge(self, bridge: str) -> str:
+        """Reject bridge names that are not a single, valid OVS bridge token."""
+        if not self.BRIDGE_NAME_REGEX.fullmatch(bridge):
+            raise AppError(
+                f"invalid bridge name '{bridge}': must match "
+                f"'^{self.BRIDGE_NAME_REGEX.pattern}$'"
+            )
+        return bridge
 
     def _get_mm_connection(self) -> minimega.minimega:
         """Get or create minimega connection."""

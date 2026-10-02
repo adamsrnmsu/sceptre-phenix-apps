@@ -1,11 +1,39 @@
-import os
+import re
 import subprocess
 import time
 from datetime import datetime
+from pathlib import Path, PurePath
 
 from phenix_apps.apps.scorch import ComponentBase
-from phenix_apps.common import utils
+from phenix_apps.common import error, utils
 from phenix_apps.common.logger import logger
+
+FILENAME_REGEX = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _validate_filename(filename: str) -> str:
+    # NOTE: os.path.basename() returned '' for names ending in '/'; PurePath.name
+    # would return the last component instead, so reject trailing '/' explicitly
+    # to keep the validation semantics identical.
+    filename = "" if filename.endswith("/") else PurePath(filename).name
+    if not FILENAME_REGEX.match(filename):
+        raise error.AppError(f"invalid capture filename '{filename}'")
+    return filename
+
+
+def _validate_filter(cap_filter: str) -> str:
+    if any(c in cap_filter for c in "'\"\n\r"):
+        raise error.AppError(f"invalid characters in capture filter '{cap_filter}'")
+    return cap_filter
+
+
+def _convert_pcap(pcap_in: str, json_out: str) -> None:
+    with Path(json_out).open("w") as jf:
+        subprocess.run(
+            ["tshark", "-r", pcap_in, "-T", "ek"],
+            stdout=jf,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 class MM(ComponentBase):
@@ -46,9 +74,12 @@ class MM(ComponentBase):
                     raise ValueError("bridge to capture traffic on not provided")
 
                 now = datetime.utcnow()
-                filename = os.path.basename(
-                    cap.get("filename", f"{bridge}-{now:%Y-%m-%dT%H:%M:%SZ}.pcap")
-                )
+                filename = cap.get("filename", None)
+
+                if filename:
+                    filename = _validate_filename(filename)
+                else:
+                    filename = f"{bridge}-{now:%Y-%m-%dT%H:%M:%SZ}.pcap"
 
                 if not filename.lower().endswith(".pcap"):
                     filename += ".pcap"
@@ -56,7 +87,7 @@ class MM(ComponentBase):
                 cap_filter = cap.get("filter", None)
 
                 if cap_filter:
-                    mm.capture_pcap_filter(cap_filter)
+                    mm.capture_pcap_filter(_validate_filter(cap_filter))
 
                 snaplen = cap.get("snaplen", None)
 
@@ -66,9 +97,7 @@ class MM(ComponentBase):
                 try:
                     logger.info(f"starting pcap capture for bridge {bridge}")
                     mm.mesh_send("all", f"shell mkdir -p {self.base_dir}")
-                    mm.capture_pcap_bridge(
-                        bridge, os.path.join(self.base_dir, filename)
-                    )
+                    mm.capture_pcap_bridge(bridge, str(Path(self.base_dir) / filename))
                     logger.info(f"started pcap capture for bridge {bridge}")
                 except Exception as ex:
                     raise RuntimeError(
@@ -92,7 +121,11 @@ class MM(ComponentBase):
                     mm.capture_pcap_delete_bridge(bridge)
                     logger.info(f"stopped pcap capture on bridge {bridge}")
 
-                    mm.file_get(os.path.relpath(self.base_dir, self.root_dir))
+                    mm.file_get(
+                        str(
+                            Path(self.base_dir).relative_to(self.root_dir, walk_up=True)
+                        )
+                    )
 
                     if cap.get("convert", False):
                         logger.info(
@@ -117,21 +150,20 @@ class MM(ComponentBase):
                         )
 
                         # convert pcap files
-                        for file in os.listdir(self.base_dir):
-                            if file.endswith(".pcap") and not os.path.exists(
-                                f"{file}.jsonl"
+                        for entry in Path(self.base_dir).iterdir():
+                            file = entry.name
+                            if (
+                                file.endswith(".pcap")
+                                and not Path(f"{file}.jsonl").exists()
                             ):
                                 logger.info(
                                     f"starting PCAP --> JSON conversion of {file}"
                                 )
 
-                                pcap_in = os.path.join(self.base_dir, file)
+                                pcap_in = str(entry)
                                 json_out = f"{pcap_in}.jsonl"
 
-                                subprocess.run(
-                                    f"bash -c 'tshark -r {pcap_in} -T ek > {json_out} 2>/dev/null'",
-                                    shell=True,
-                                )
+                                _convert_pcap(pcap_in, json_out)
 
                                 logger.info(
                                     f"PCAP --> JSON conversion of {file} complete"
@@ -242,12 +274,14 @@ class MM(ComponentBase):
                         )
 
                     now = utils.utc_now()
-                    filename = os.path.basename(
-                        cap.get(
-                            "filename",
-                            f"{vm.hostname}-{iface}-{now:%Y-%m-%dT%H:%M:%SZ}.pcap",
+                    filename = cap.get("filename", None)
+
+                    if filename:
+                        filename = _validate_filename(filename)
+                    else:
+                        filename = (
+                            f"{vm.hostname}-{iface}-{now:%Y-%m-%dT%H:%M:%SZ}.pcap"
                         )
-                    )
 
                     if not filename.lower().endswith(".pcap"):
                         filename += ".pcap"
@@ -255,7 +289,7 @@ class MM(ComponentBase):
                     cap_filter = cap.get("filter", None)
 
                     if cap_filter:
-                        mm.capture_pcap_filter(cap_filter)
+                        mm.capture_pcap_filter(_validate_filter(cap_filter))
 
                     snaplen = cap.get("snaplen", None)
 
@@ -268,7 +302,7 @@ class MM(ComponentBase):
                         )
                         mm.mesh_send("all", f"shell mkdir -p {self.base_dir}")
                         mm.capture_pcap_vm(
-                            vm.hostname, iface, os.path.join(self.base_dir, filename)
+                            vm.hostname, iface, str(Path(self.base_dir) / filename)
                         )
                         logger.info(
                             f"started pcap capture for interface {iface} on {vm.hostname}"
@@ -288,7 +322,13 @@ class MM(ComponentBase):
                         mm.capture_pcap_delete_vm(vm.hostname)
                         logger.info(f"stopped pcap capture(s) on VM {vm.hostname}")
 
-                        mm.file_get(os.path.relpath(self.base_dir, self.root_dir))
+                        mm.file_get(
+                            str(
+                                Path(self.base_dir).relative_to(
+                                    self.root_dir, walk_up=True
+                                )
+                            )
+                        )
 
                         if cap and cap.get("convert", False):
                             logger.info(
@@ -309,21 +349,20 @@ class MM(ComponentBase):
                                     break
 
                             # convert pcap files
-                            for file in os.listdir(self.base_dir):
-                                if file.endswith(".pcap") and not os.path.exists(
-                                    f"{file}.jsonl"
+                            for entry in Path(self.base_dir).iterdir():
+                                file = entry.name
+                                if (
+                                    file.endswith(".pcap")
+                                    and not Path(f"{file}.jsonl").exists()
                                 ):
                                     logger.info(
                                         f"starting PCAP --> JSON conversion of {file}"
                                     )
 
-                                    pcap_in = os.path.join(self.base_dir, file)
+                                    pcap_in = str(entry)
                                     json_out = f"{pcap_in}.jsonl"
 
-                                    subprocess.run(
-                                        f"bash -c 'tshark -r {pcap_in} -T ek > {json_out} 2>/dev/null'",
-                                        shell=True,
-                                    )
+                                    _convert_pcap(pcap_in, json_out)
 
                                     logger.info(
                                         f"PCAP --> JSON conversion of {file} complete"
