@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH pipe**: Metadata model.
 - **SCORCH disruption**: Metadata model with new margin, args, OS fields.
 - **SCORCH hoststats**: Metadata model; failed samples are retried.
+- **SCORCH collector**: `pcap_duration_margin`; empty iperf logs removed.
 
 ### Changed
 - **OT-sim App**: DNP3 address assignment is a module function (`protocols.dnp3.assign_addresses`)
@@ -81,6 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH**: kafka's PID file moves from `/tmp` to the experiment's `files_dir/scorch/`; ssh takes optional `known_hosts`.
 - **SCORCH art/cc/pipe**: `PHENIX_SCORCH_HOST_VALIDATORS=0` stops validators and `via` from running scenario-supplied commands on the host; validator scripts are written with `tempfile`.
 - **SCORCH**: The shared `Token` and `Args` metadata types are plain-character allowlists, so `--omit 2; printf x` no longer passes as `Args`; new `FilterExpr` type for tcpdump-style filters. Run names that are not one plain word are replaced by the run index in the file names `cc` and `caldera` write on the host. The `mm` component quotes capture filters for minimega (a filter with spaces did not parse) and validates VM names; capture filters reject `\` and `#`.
+- **SCORCH collector**: `configure`-stage output now found.
+- **SCORCH collector**: PMU count logging raised `TypeError`.
+- **SCORCH collector**: Missing or empty provider `config.ini` is reported.
+- **SCORCH collector**: The disruption listed in the run is used.
+- **SCORCH collector**: `generate_csv` reads PMUs from `provider`, not `rtds`.
+- **SCORCH collector**: `pcap` without merged capture no longer fails.
+- **SCORCH collector**: Timestamp checks no longer use `assert`.
 
 ## [2.0.0] - 2026-03-04
 
