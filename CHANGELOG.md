@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH pipe**: Metadata model.
 - **SCORCH disruption**: Metadata model with new margin, args, OS fields.
 - **SCORCH hoststats**: Metadata model; failed samples are retried.
+- **SCORCH qos**: Metadata model; `interface` accepts a name or index.
 
 ### Changed
 - **OT-sim App**: DNP3 address assignment is a module function (`protocols.dnp3.assign_addresses`)
@@ -62,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: A `fep` without a mgmt interface raised `UnboundLocalError`, or reused the previous fep's endpoints.
 - **SCORCH hoststats**: Stopping no longer loses final samples.
 - **SCORCH hoststats**: Logs a one-line summary per sample, not full records.
+- **SCORCH qos**: `variable_loss` works without `loss`.
+- **SCORCH qos**: `rate` without a space no longer crashes.
 - **SCEPTRE App**: A historian on a subnet with no OPC server was configured with an unrelated OPC's tag list and no address to collect from. It now gets no tags and a warning naming the subnet.
 - **SCEPTRE App**: OPC, SCADA and historian configs now use case-insensitive matching of MGMT VLAN.
 - **SCORCH pipe**: Unquoted mapping `data` broke the command; now rejected.
