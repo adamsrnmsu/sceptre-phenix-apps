@@ -12,7 +12,7 @@ stages: start, stop
 - Statistics collected include memory usage, CPU times, IO counters, and process counts, among other statistics. See the section at the end of this README for a complete list.
 - Only Linux hosts are supported, and the `vmstat` command must be available and on the path.
 - Routers (VyOS) are not currently supported, since it uses a older version of `vmstat` that is missing arguments used by this component. If this functionality is needed, it shouldn't be too much work to fix this compatibility issue.
-- Compatible `os_type` (from phenix topology): `linux`, `centos`, `rhel`
+- Compatible `os_type` (from phenix topology): `linux`, `centos`, `rhel`. A VM without `os_type` counts as `linux`, as phenix core defaults it.
 - Stats are written to the file `/vmstat.out` in the VM, which is a plain-text file. During the `stop` stage, this file is transferred to the host and parsed. The results from all hosts are combined and written to `vm_stats.jsonl` in JSON lines format (one JSON object per line). This file is needed for filebeat to ingest into Elasticsearch.
 
 
