@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH mm**: Metadata model, `convert_timeout`, per-interface VM capture stop.
 - **SCORCH vmstats**: Metadata model; `stopWait` sets the post-stop wait.
 - **SCORCH qos**: Metadata model; `interface` accepts a name or index.
+- **SCORCH providerdata**: Strict metadata model; bad URLs always fail.
+- **SCORCH providerdata**: Optional new-document and grid frequency checks.
+- **SCORCH providerdata**: CSV check fails if files stop growing.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -94,6 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH mm**: Filter and snaplen no longer leak into later captures.
 - **SCORCH mm**: Capture filters with spaces or backslashes are quoted correctly.
 - **SCORCH mm**: Failed or timed-out conversions are logged and retried.
+- **SCORCH providerdata**: Too few documents no longer reports Elasticsearch down.
+- **SCORCH providerdata**: Missing `config-file` setting now named in error.
 - **Wind Turbine Scale Plugin**: Stage an optional `container_template.rootfs_source` on each generated VM outside the containers' shared weather volume; mount Node-RED flows at their configured container path. Reject densities that split a turbine's private network across VMs.
 - **SCEPTRE App**: With more than one PowerWorld provider, only the last one's `hil_tags` reached the object list, and only the last one's `objects.txt` was written. Tags now aggregate across providers and every PowerWorld provider gets the combined `objects.txt`.
 - **SCEPTRE App**: `fep` hosts raised `TypeError`, built without the required `device_subtype`.
