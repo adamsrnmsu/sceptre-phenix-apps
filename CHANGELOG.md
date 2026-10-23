@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH providerdata**: Strict metadata model; bad URLs always fail.
 - **SCORCH providerdata**: Optional new-document and grid frequency checks.
 - **SCORCH providerdata**: CSV check fails if files stop growing.
+- **Common**: `ExperimentBase`: topology lookups and `mm` shared by apps and components.
+- **Common**: `utils.split_host_port` parses `host:port` and IPv6 addresses.
+- **Common**: `extract_node_os_type`: a node's `os_type`, defaulting like phēnix core.
+- **Common**: `require_node` raises `ValueError` naming a missing node.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -66,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH erspan**: `cleanup` reports every failed remote command.
 - **Build System**: `Mako>=1.3.10`, `requests>=2.32.4` (security advisories).
 - **Build System**: `lxml>=6.0.2`, the first release with wheels for Python 3.12 to 3.14.
+- **Build System**: `python-dateutil~=2.9.0`, silencing a Python 3.12 deprecation warning.
 - **SCEPTRE App**: Register numbering state is per `FieldDeviceConfig` instead of class-level mutable state on `Register`; numbering is no longer order-dependent across configs and the test suite runs safely in parallel. Output is unchanged.
 - **SCEPTRE App**: `configure()` and `pre_start()` are stage classes, `ConfigureStage` and `PreStart`, sharing pre-start state through `PreStartState`.
 - **SCEPTRE App**: The device-type table is `configs/infrastructures.yaml`; adding a device type needs no code change.
@@ -76,6 +81,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: Validation failures raise `error.AppError` instead of calling `sys.exit(1)`, matching the app contract.
 - **SCEPTRE App**: `metadata.simulator` matches case-insensitively in both stages, as validation already did; a miscased name used to silently get the default config.
 - **Build System**: `package-data` ships the `mydesigner` SCADA tree and infrastructure table.
+- **SCORCH**: `extract_node_ip` raises on empty (DHCP) addresses; `iface=""` picks the first.
+- **SCORCH**: vmstats counts VMs without `os_type` as Linux, matching phēnix core.
+- **SCORCH**: iperf treats an unset `os_type` as Linux, like phēnix core.
+- **Testing**: `mock_app` also mocks inherited `ExperimentBase` methods; see `real_methods`.
+- **Common**: `get_annotation` moved to `ExperimentBase`, so components get it too.
+- **Common**: `AppBase` `add_*` and `is_booting` raise `ValueError` for missing nodes.
+
+### Deprecated
+- **Common**: `extract_node_interface_ip`; use `extract_node_ip`, which raises on a miss.
 
 ### Removed
 - **SCEPTRE App**: The `reg_config` manual register-map path. It was dead code: the app never populated it, so every device always took the automatic numbering branch. Output is unchanged.
@@ -99,6 +113,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH mm**: Failed or timed-out conversions are logged and retried.
 - **SCORCH providerdata**: Too few documents no longer reports Elasticsearch down.
 - **SCORCH providerdata**: Missing `config-file` setting now named in error.
+- **SCORCH**: Components honor `MM_SOCKET_PATH` when connecting to minimega.
+- **SCORCH**: cc no longer crashes on nodes without `os_type`.
+- **SCORCH**: A missing `elasticsearch.server` fails naming the field.
+- **SCORCH**: collector names missing topology/scenario annotations instead of crashing.
+- **SCORCH**: collector matches `os_type` case-insensitively and skips external nodes.
+- **SCORCH**: iperf and disruption name a missing node instead of crashing.
+- **Common**: Interface lookups skip nodes whose `network` is null.
+- **SCEPTRE App**: Missing annotations or hostnames raise named errors, not crashes.
+- **OT-sim and HELICS Apps**: IPv6 broker and protocol addresses parse correctly.
 - **Wind Turbine Scale Plugin**: Stage an optional `container_template.rootfs_source` on each generated VM outside the containers' shared weather volume; mount Node-RED flows at their configured container path. Reject densities that split a turbine's private network across VMs.
 - **SCEPTRE App**: With more than one PowerWorld provider, only the last one's `hil_tags` reached the object list, and only the last one's `objects.txt` was written. Tags now aggregate across providers and every PowerWorld provider gets the combined `objects.txt`.
 - **SCEPTRE App**: `fep` hosts raised `TypeError`, built without the required `device_subtype`.

@@ -165,11 +165,9 @@ class Iperf(ComponentBase):
 
     def _get_node_info(self) -> dict:
         """
-        There doesn't seem to be a straightforward way to get OS
-        information from minimega. Inspecting the topology
-        (self.experiment.spec.topology) would usually work
-        using "hardware.os_type", however it COULD fail if
-        someone neglected to include os_type for a node.
+        minimega has no straightforward way to report a VM's OS, so read
+        hardware.os_type from the topology. An unset os_type is linux, as
+        phenix core defaults it.
         """
         vms = set()
         for server in self.config.servers:
@@ -178,23 +176,18 @@ class Iperf(ComponentBase):
                 vms.add(client.hostname)
 
         os_types = {}
-        for node in self.experiment.spec.topology.nodes:
-            if node.general.hostname in vms:
-                os_type = str(node.get("hardware", {}).get("os_type", "")).lower()
-                if os_type not in ["linux", "windows"]:
-                    raise ValueError(
-                        f'unknown os_type "{os_type}" for {node.general.hostname} '
-                        "(hardware.os_type must be linux or windows)"
-                    )
-                if getattr(self.config.iperf_paths, os_type) is None:
-                    raise ValueError(
-                        f"{node.general.hostname} is {os_type}, but "
-                        f"iperf_paths.{os_type} is not set"
-                    )
-                os_types[node.general.hostname] = os_type
-
-        if missing := sorted(vms - os_types.keys()):
-            raise ValueError(f"iperf hosts not in the topology: {', '.join(missing)}")
+        for vm in sorted(vms):
+            os_type = self.extract_node_os_type(vm)
+            if os_type not in ["linux", "windows"]:
+                raise ValueError(
+                    f'unknown os_type "{os_type}" for {vm} '
+                    "(hardware.os_type must be linux or windows)"
+                )
+            if getattr(self.config.iperf_paths, os_type) is None:
+                raise ValueError(
+                    f"{vm} is {os_type}, but iperf_paths.{os_type} is not set"
+                )
+            os_types[vm] = os_type
 
         return {
             "vms": sorted(vms),
@@ -322,7 +315,7 @@ class Iperf(ComponentBase):
         _, index = self.get_host_and_iface(
             Box({"hostname": hostname, "interface": interface})
         )
-        node = self.extract_node(hostname)
+        node = self.require_node(hostname)
         if index >= len(node.network.interfaces):
             raise ValueError(
                 f"interface {index} does not exist on node {hostname} "
@@ -336,9 +329,11 @@ class Iperf(ComponentBase):
         logger.info("building iperf mapping")
 
         for server in self.config.servers:
-            s_node, s_if = self._interface(server.hostname, server.interface)
+            _, s_if = self._interface(server.hostname, server.interface)
             s_exe = Path(
-                getattr(self.config.iperf_paths, s_node.hardware.os_type.lower())
+                getattr(
+                    self.config.iperf_paths, self.extract_node_os_type(server.hostname)
+                )
             )
             s_map = {
                 **server.model_dump(exclude_unset=True),
@@ -352,7 +347,7 @@ class Iperf(ComponentBase):
             curr_port = server.port_range_start
 
             for client in server.clients:
-                c_node, c_if = self._interface(client.hostname, client.interface)
+                _, c_if = self._interface(client.hostname, client.interface)
 
                 if curr_port in all_ports:
                     raise ValueError(
@@ -361,7 +356,10 @@ class Iperf(ComponentBase):
                 all_ports.add(curr_port)
 
                 c_exe = Path(
-                    getattr(self.config.iperf_paths, c_node.hardware.os_type.lower())
+                    getattr(
+                        self.config.iperf_paths,
+                        self.extract_node_os_type(client.hostname),
+                    )
                 )
                 c_map = {
                     **client.model_dump(exclude_unset=True),
