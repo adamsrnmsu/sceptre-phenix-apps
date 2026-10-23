@@ -26,8 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH pipe**: Metadata model.
 - **SCORCH disruption**: Metadata model with new margin, args, OS fields.
 - **SCORCH hoststats**: Metadata model; failed samples are retried.
+- **SCORCH tcpdump**: Validated metadata with clear field errors.
+- **SCORCH tcpdump**: `convertTimeout`; PID file; interface and stage-order checks.
 
 ### Changed
+- **SCORCH tcpdump**: `convertToJSON` is now `convert_to_json`; the old key is deprecated.
 - **OT-sim App**: DNP3 address assignment is a module function (`protocols.dnp3.assign_addresses`)
 - **Build System**: mypy runs in `make check` and CI; modules with existing errors are listed in pyproject.toml.
 - **Build System**: `Mako>=1.3.10`, `requests>=2.32.4` (security advisories).
@@ -70,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH disruption**: `dos` waits for `start_delay` plus attack time.
 - **SCORCH disruption**: MGMT interface matched in any case; too-long `start_delay` rejected.
 - **SCORCH disruption**: Failed physical stages are all reported; short dos attacks warn.
+- **SCORCH tcpdump**: `stop` deletes captures using the VM's own filter.
+- **SCORCH tcpdump**: `stop` kills only its own tcpdump, not all of them.
+- **SCORCH tcpdump**: Failed or timed-out JSON conversion is logged as an error.
+- **SCORCH tcpdump**: Launch via a sent script, so minimega keeps `$$`; log stderr.
+- **SCORCH tcpdump**: README Filebeat input is valid YAML.
 
 ### Security
 - **Common**: New `validate_hostname()` (phenix v2026.10.02 rules) and `safe_join()` guard hostnames and paths built from metadata; `mm_send()`/`mm_recv()` stay inside the miniccc mount. **Breaking:** rejects `_`, 1-char, all-digit, `all` and `phenix` hostnames.
