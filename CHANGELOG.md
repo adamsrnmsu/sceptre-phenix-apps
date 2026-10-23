@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH pcap**: Validated metadata; added the `merge_timeout` and `tshark_timeout` fields.
 - **SCORCH pcap**: Warns about other active captures and bad stage order.
 - **SCORCH collector**: `pcap_duration_margin`; empty iperf logs removed.
+- **SCORCH mm**: Metadata model, `convert_timeout`, per-interface VM capture stop.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -77,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **mgmt_tap App**: The VLAN alias matches case-insensitively, and the missing-VLAN error names the alias.
 - **SCORCH pcap**: Per-VM filters no longer leak into the next VM.
+- **SCORCH mm**: Capture filters no longer stick after a capture.
 - **Common Utils**: fix cc commands parsing to be resilient to header changes.
 - **OT-sim App**: `fd-server` hosts ignored the app-level `infrastructure` setting, so their protocol registers didn't match the tags the I/O module published.
 - **Common Utils**: `mm_exec_wait` and `mm_get_cc_responses` split `cc responses` output on whole header lines; stderr no longer swallows stdout, and output containing `/` is no longer truncated.
@@ -86,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH cc**: Validators no longer crash on commands that print nothing.
 - **SCORCH ssh**: `cmds` or `files` string was split into characters.
 - **SCORCH erspan**: Excluding every VLAN mirrored everything; now an error.
+- **SCORCH mm**: Filter and snaplen no longer leak into later captures.
+- **SCORCH mm**: Capture filters with spaces or backslashes are quoted correctly.
+- **SCORCH mm**: Failed or timed-out conversions are logged and retried.
 - **Wind Turbine Scale Plugin**: Stage an optional `container_template.rootfs_source` on each generated VM outside the containers' shared weather volume; mount Node-RED flows at their configured container path. Reject densities that split a turbine's private network across VMs.
 - **SCEPTRE App**: With more than one PowerWorld provider, only the last one's `hil_tags` reached the object list, and only the last one's `objects.txt` was written. Tags now aggregate across providers and every PowerWorld provider gets the combined `objects.txt`.
 - **SCEPTRE App**: `fep` hosts raised `TypeError`, built without the required `device_subtype`.
