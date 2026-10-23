@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH hoststats**: Metadata model; failed samples are retried.
 - **SCORCH iperf**: Metadata model; `interface`, `client_port_offset`, `stop_grace` fields.
 - **SCORCH iperf**: `stop` collects results in one transfer per VM.
+- **SCORCH rtds**: Strict URL and case name checks; wait and timeout fields.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -93,6 +94,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH**: kafka's PID file moves from `/tmp` to the experiment's `files_dir/scorch/`; ssh takes optional `known_hosts`.
 - **SCORCH art/cc/pipe**: `PHENIX_SCORCH_HOST_VALIDATORS=0` stops validators and `via` from running scenario-supplied commands on the host; validator scripts are written with `tempfile`.
 - **SCORCH**: The shared `Token` and `Args` metadata types are plain-character allowlists, so `--omit 2; printf x` no longer passes as `Args`; new `FilterExpr` type for tcpdump-style filters. Run names that are not one plain word are replaced by the run index in the file names `cc` and `caldera` write on the host. The `mm` component quotes capture filters for minimega (a filter with spaces did not parse) and validates VM names; capture filters reject `\` and `#`.
+- **SCORCH rtds**: `rscad_automation.case_name` check now runs.
+- **SCORCH rtds**: `_stop_case(allow_failure=True)` no longer raises `KeyError`.
+- **SCORCH rtds**: RSCAD requests time out instead of hanging.
+- **SCORCH rtds**: Time-drift check fails clearly without documents.
 
 ## [2.0.0] - 2026-03-04
 
