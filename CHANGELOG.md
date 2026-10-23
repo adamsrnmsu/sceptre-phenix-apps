@@ -26,8 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH pipe**: Metadata model.
 - **SCORCH disruption**: Metadata model with new margin, args, OS fields.
 - **SCORCH hoststats**: Metadata model; failed samples are retried.
+- **SCORCH iperf**: Metadata model; `interface`, `client_port_offset`, `stop_grace` fields.
+- **SCORCH iperf**: `stop` collects results in one transfer per VM.
 
 ### Changed
+- **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
+- **SCORCH iperf**: PID-file scripts go by cc file; VMs are targeted by UUID.
+- **SCORCH iperf**: `add_*_args` accept only plain characters; `--json-stream` is rejected.
 - **OT-sim App**: DNP3 address assignment is a module function (`protocols.dnp3.assign_addresses`)
 - **Build System**: mypy runs in `make check` and CI; modules with existing errors are listed in pyproject.toml.
 - **Build System**: `Mako>=1.3.10`, `requests>=2.32.4` (security advisories).
@@ -70,6 +75,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH disruption**: `dos` waits for `start_delay` plus attack time.
 - **SCORCH disruption**: MGMT interface matched in any case; too-long `start_delay` rejected.
 - **SCORCH disruption**: Failed physical stages are all reported; short dos attacks warn.
+- **SCORCH iperf**: Servers now write their JSON results.
+- **SCORCH iperf**: Fractional `run_duration` no longer makes iperf3 run forever.
+- **SCORCH iperf**: `iperf_version` no longer matches `3.1` against 3.15.
+- **SCORCH iperf**: Fixed debug-log redirect writing a file named `1`.
+- **SCORCH iperf**: Windows clients no longer use `bash -c`.
+- **SCORCH iperf**: Failed version check reports the VM.
 
 ### Security
 - **Common**: New `validate_hostname()` (phenix v2026.10.02 rules) and `safe_join()` guard hostnames and paths built from metadata; `mm_send()`/`mm_recv()` stay inside the miniccc mount. **Breaking:** rejects `_`, 1-char, all-digit, `all` and `phenix` hostnames.
