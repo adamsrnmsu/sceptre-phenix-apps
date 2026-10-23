@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ignition App**: Add support for sending DNP3 Analog Output setpoint control commands.
 - **OT-sim App**: `points.Outstations` exposes the DNP3 points and listen endpoint of any outstation host for other apps; `Register` records its device, type, variable and protocol section.
 - **Common**: `utils.mm_cc_filter()` context manager clears the cc filter.
+- **SCORCH pcap**: Per-VM `filter` and `snaplen`.
 - **Wind Turbine Scale Plugin**: Artifact-generation regression tests and documentation linking to the companion [complete example in sceptre-phenix-topologies](https://github.com/sandialabs/sceptre-phenix-topologies/tree/main/renewables/wind/wind-scale) (sandialabs/sceptre-phenix-apps#95).
 - **SCEPTRE App**: Pre-flight scenario validation: one pydantic model, run before either stage, reporting every problem at once with the host and field.
 - **SCEPTRE App**: Stage accounting in the logs: a scenario inventory by device type, and what each handler produced.
@@ -29,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH iperf**: Metadata model; `interface`, `client_port_offset`, `stop_grace` fields.
 - **SCORCH iperf**: `stop` collects results in one transfer per VM.
 - **SCORCH rtds**: Strict URL and case name checks; wait and timeout fields.
+- **SCORCH pcap**: Validated metadata; added the `merge_timeout` and `tshark_timeout` fields.
+- **SCORCH pcap**: Warns about other active captures and bad stage order.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -43,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCEPTRE App**: The device-type table is `configs/infrastructures.yaml`; adding a device type needs no code change.
 - **SCEPTRE App**: Injections are declared with `Sceptre.inject()`, and all of them in the configure stage.
 - **Common**: `utils.abs_path()` always returns a `Path`.
+- **SCORCH pcap**: `convertToJSON` is now `convert_to_json`; the old key is deprecated.
 - **SCEPTRE App**: Type annotations on every app function, `Final` on module constants.
 - **SCEPTRE App**: Validation failures raise `error.AppError` instead of calling `sys.exit(1)`, matching the app contract.
 - **SCEPTRE App**: `metadata.simulator` matches case-insensitively in both stages, as validation already did; a miscased name used to silently get the default config.
@@ -54,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **mgmt_tap App**: The VLAN alias matches case-insensitively, and the missing-VLAN error names the alias.
+- **SCORCH pcap**: Per-VM filters no longer leak into the next VM.
 - **Common Utils**: fix cc commands parsing to be resilient to header changes.
 - **OT-sim App**: `fd-server` hosts ignored the app-level `infrastructure` setting, so their protocol registers didn't match the tags the I/O module published.
 - **Common Utils**: `mm_exec_wait` and `mm_get_cc_responses` split `cc responses` output on whole header lines; stderr no longer swallows stdout, and output containing `/` is no longer truncated.
@@ -83,6 +88,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH iperf**: Fixed debug-log redirect writing a file named `1`.
 - **SCORCH iperf**: Windows clients no longer use `bash -c`.
 - **SCORCH iperf**: Failed version check reports the VM.
+- **SCORCH pcap**: DoS targets match captures by exact hostname.
+- **SCORCH pcap**: DoS handling works when every VM is a target.
+- **SCORCH pcap**: DoS handling only uses disruptions in the run, including nested loops.
+- **SCORCH pcap**: Stopping captures only ends the listed interface.
+- **SCORCH pcap**: README Filebeat input and default interface fixed.
 
 ### Security
 - **Common**: New `validate_hostname()` (phenix v2026.10.02 rules) and `safe_join()` guard hostnames and paths built from metadata; `mm_send()`/`mm_recv()` stay inside the miniccc mount. **Breaking:** rejects `_`, 1-char, all-digit, `all` and `phenix` hostnames.
