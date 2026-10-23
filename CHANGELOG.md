@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OT-sim App**: `points.Outstations` exposes the DNP3 points and listen endpoint of any outstation host for other apps; `Register` records its device, type, variable and protocol section.
 - **Common**: `utils.mm_cc_filter()` context manager clears the cc filter.
 - **SCORCH pcap**: Per-VM `filter` and `snaplen`.
+- **SCORCH vmstats**: Works with a `vmstat` lacking `-t` (VyOS).
 - **Wind Turbine Scale Plugin**: Artifact-generation regression tests and documentation linking to the companion [complete example in sceptre-phenix-topologies](https://github.com/sandialabs/sceptre-phenix-topologies/tree/main/renewables/wind/wind-scale) (sandialabs/sceptre-phenix-apps#95).
 - **SCEPTRE App**: Pre-flight scenario validation: one pydantic model, run before either stage, reporting every problem at once with the host and field.
 - **SCEPTRE App**: Stage accounting in the logs: a scenario inventory by device type, and what each handler produced.
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH pcap**: Warns about other active captures and bad stage order.
 - **SCORCH collector**: `pcap_duration_margin`; empty iperf logs removed.
 - **SCORCH mm**: Metadata model, `convert_timeout`, per-interface VM capture stop.
+- **SCORCH vmstats**: Metadata model; `stopWait` sets the post-stop wait.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -123,6 +125,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH tcpdump**: Failed or timed-out JSON conversion is logged as an error.
 - **SCORCH tcpdump**: Launch via a sent script, so minimega keeps `$$`; log stderr.
 - **SCORCH tcpdump**: README Filebeat input is valid YAML.
+- **SCORCH vmstats**: One VM without output no longer loses the rest.
+- **SCORCH vmstats**: Repeated headers and cut lines are skipped.
+- **SCORCH vmstats**: A string `vms` now fails instead of splitting into letters.
 
 ### Security
 - **Common**: New `validate_hostname()` (phenix v2026.10.02 rules) and `safe_join()` guard hostnames and paths built from metadata; `mm_send()`/`mm_recv()` stay inside the miniccc mount. **Breaking:** rejects `_`, 1-char, all-digit, `all` and `phenix` hostnames.
