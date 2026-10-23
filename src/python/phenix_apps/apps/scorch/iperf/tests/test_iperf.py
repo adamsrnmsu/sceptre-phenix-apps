@@ -257,8 +257,11 @@ def test_unknown_interface_is_reported(interface, message):
 @pytest.mark.parametrize(
     ("nodes", "message"),
     [
-        (LINUX_NODES[:2], "iperf hosts not in the topology: c2"),
-        ([*LINUX_NODES[:2], node("c2", None, "10.0.0.3")], 'unknown os_type "" for c2'),
+        (LINUX_NODES[:2], "node c2 does not exist"),
+        (
+            [*LINUX_NODES[:2], node("c2", "solaris", "10.0.0.3")],
+            'unknown os_type "solaris" for c2',
+        ),
         (
             [*LINUX_NODES[:2], node("c2", "windows", "10.0.0.3")],
             "c2 is windows, but iperf_paths.windows is not set",
