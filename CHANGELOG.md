@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH rtds**: Strict URL and case name checks; wait and timeout fields.
 - **SCORCH pcap**: Validated metadata; added the `merge_timeout` and `tshark_timeout` fields.
 - **SCORCH pcap**: Warns about other active captures and bad stage order.
+- **SCORCH collector**: `pcap_duration_margin`; empty iperf logs removed.
 
 ### Changed
 - **SCORCH iperf**: Linux iperf3 is checked and killed through PID files.
@@ -118,6 +119,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SCORCH rtds**: `_stop_case(allow_failure=True)` no longer raises `KeyError`.
 - **SCORCH rtds**: RSCAD requests time out instead of hanging.
 - **SCORCH rtds**: Time-drift check fails clearly without documents.
+- **SCORCH collector**: `configure`-stage output now found.
+- **SCORCH collector**: PMU count logging raised `TypeError`.
+- **SCORCH collector**: Missing or empty provider `config.ini` is reported.
+- **SCORCH collector**: The disruption listed in the run is used.
+- **SCORCH collector**: `generate_csv` reads PMUs from `provider`, not `rtds`.
+- **SCORCH collector**: `pcap` without merged capture no longer fails.
+- **SCORCH collector**: Timestamp checks no longer use `assert`.
 
 ## [2.0.0] - 2026-03-04
 
