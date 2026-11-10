@@ -78,6 +78,8 @@ sceptre/
   prestart.py               PreStart: step order, provider/helics/elk work
   field_devices.py          FieldDevices: fd-server, fd-client, fep
   scada.py                  Scada: opc, scada server, hmi, engineer, historian
+  scada_linux.py            config generators for metadata.stack: linux_fuxa
+  lock_view.py              the FUXA process views (plain table; animated waterway lock when its tags exist)
   simulators.py             everything simulator-specific, one section each
   metadata.py               Simulator / Infrastructure names, metadata parser
   hosts.py                  topology questions both stages ask
@@ -87,7 +89,7 @@ sceptre/
     infrastructures.py        loads it, and builds one device from it
     registers.py              Device and Register: fields -> wire addresses
     configs.py                FieldDeviceConfig, OpcConfig, HistorianConfig
-  templates/                24 Mako templates
+  templates/                26 Mako templates
   tests/
 ```
 
@@ -183,6 +185,71 @@ dnp3:
 Only `type`, `name` and those four keys are accepted; anything else is dropped
 by the parser and reported as an unsupported key, since a typo there would
 otherwise be a silent no-op.
+
+## Linux SCADA stack (`stack: linux_fuxa`)
+
+By default the SCADA side is the Windows stack: TopServer (OPC), MyScada (SCADA
+server) and PowerShell scripts. A host that sets `metadata.stack: linux_fuxa`
+gets the Linux stack instead: [FUXA](https://github.com/frangoteam/FUXA) as the
+SCADA server and HMI, an OPC UA gateway that polls the RTUs over Modbus TCP,
+telegraf and InfluxDB as the historian, and a plain Linux engineer workstation.
+
+```yaml
+- hostname: opc
+  metadata: {type: opc, stack: linux_fuxa, connected_rtus: [rtu-1, rtu-2]}
+- hostname: scada-server
+  metadata: {type: scada-server, stack: linux_fuxa}
+- hostname: hist-1
+  metadata: {type: historian, stack: linux_fuxa, influx_bucket: plant}
+```
+
+The app writes configs only. FUXA, the gateway, telegraf and InfluxDB come with
+the VM image. The stack is metadata and not `hardware.os_type` because phenix
+validates that field against a fixed list and branches on `linux`; the node
+keeps `os_type: linux`. It is set per host, so a Windows historian can sit next
+to a Linux OPC. Without `stack`, nothing changes.
+
+| Role | Generated (under `sceptre/<host>/`) | Injected to |
+|---|---|---|
+| opc | `opc_gateway.json` | `/etc/sceptre/opc_gateway.json` |
+| scada-server | `fuxa_project.json`, `hmi_url` | `/etc/sceptre/fuxa_project.json`, `/etc/sceptre/hmi_url` |
+| hmi | `hmi_url` (its SCADA server's FUXA URL) | `/etc/sceptre/hmi_url` |
+| historian | `telegraf.conf`, `influx-setup.sh` | `/etc/telegraf/telegraf.conf`, `/etc/phenix/startup/influx-setup.sh` (`0744`) |
+| engineer-workstation | `rtus.txt` (`<hostname> <ip>` per RTU) | `/etc/sceptre/rtus.txt` |
+
+Every inject takes `override=<file name>`, like the Windows ones. No `.ps1`
+scripts or startup scheduler are generated for these hosts.
+
+Every register is an OPC UA node `ns=2;s=<rtu>.<device>.<field>`. A field with
+both an input and a holding register (a gate's `open`) is one node: it reads
+from the input register and writes to the holding register. The gateway, FUXA
+and telegraf are all built from the same `OpcConfig` the Windows stack uses.
+
+Historian metadata `influx_org`, `influx_bucket`, `influx_token` and
+`influx_password` (defaults `sceptre`, `sceptre`, `sceptre-historian-token`,
+`sceptre-admin-pass`: lab defaults, not secrets) go into `telegraf.conf` and
+`influx-setup.sh`; `measurement` (default `sceptre`) is telegraf's OPC UA input
+name. Scada-server metadata `fuxa_name` (default `sceptre`) is the FUXA project
+name and `hmi_view` picks the process view (`plain` or `waterway-lock`). Unset,
+the animated lock view is used when the project has the lock's tags (water
+levels, gates, boat location), else a plain table of every tag.
+
+Limits, each reported by validation or pre-start:
+
+- Modbus only: a DNP3, BACnet or IEC 104 RTU behind a `linux_fuxa` OPC is an
+  error (the gateway speaks Modbus TCP). Only input and holding registers.
+- The gateway has one scale, so RTUs with different ranges are an error.
+- `stack` needs `os_type: linux`, and a `linux_fuxa` scada-server cannot carry
+  the Windows `project`/`automation` files.
+- The animated lock view (`lock_view.py`) is specific to the waterway
+  infrastructure. It turns on only when the lock's tags are present
+  (`hmi_view: plain` forces it off); other scenarios get a plain table.
+- A linux_fuxa scada-server or historian with no OPC server to read is an
+  error.
+
+`tests/test_linux_fuxa_golden.py` runs the waterway-arm64 range on this stack
+and compares the output with `tests/golden_linux_fuxa/`, the files the range
+previously generated outside the app.
 
 ## Validation
 

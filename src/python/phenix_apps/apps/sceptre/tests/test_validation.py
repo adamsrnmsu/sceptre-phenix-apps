@@ -433,3 +433,95 @@ class TestSimulator:
     def test_parse_returns_none_for_an_unknown_name(self):
         assert Simulator.parse("nope") is None
         assert Simulator.parse("") is None
+
+
+class TestLinuxFuxaStack:
+    """metadata.stack: linux_fuxa on the SCADA-side hosts."""
+
+    @staticmethod
+    def linux(exp, hostname, **metadata):
+        topo_node(exp, hostname).hardware.os_type = "linux"
+        host(exp, hostname).metadata.update({"stack": "linux_fuxa", **metadata})
+
+    @staticmethod
+    def modbus_rtus(exp):
+        """Both RTUs the opc polls become modbus-only."""
+        for name in ("rtu-1", "rtu-3"):
+            meta = host(exp, name).metadata
+            for key in ("dnp3", "modbus-serial"):
+                meta.pop(key, None)
+            meta["modbus"] = [{"type": "bus", "name": f"bus-{name}"}]
+
+    @pytest.mark.parametrize(
+        "hostname", ["opc-1", "scada-2", "hmi-2", "eng-1", "hist-1"]
+    )
+    def test_accepted_on_the_five_scada_types(self, scenario, hostname):
+        def mutate(exp):
+            self.modbus_rtus(exp)
+            self.linux(exp, hostname)
+
+        assert validation.validate(scenario(mutate)) == []
+
+    def test_unset_stack_changes_nothing(self, scenario):
+        assert validation.validate(scenario()) == []
+
+    def test_rejected_on_a_windows_host(self, scenario):
+        app = scenario(lambda e: host(e, "hmi-2").metadata.update(stack="linux_fuxa"))
+
+        found = validation.validate(app)
+
+        assert any(
+            p.hostname == "hmi-2"
+            and p.fatal
+            and "needs hardware.os_type linux" in p.message
+            for p in found
+        ), messages(found)
+
+    def test_rejected_with_a_windows_project(self, scenario):
+        app = scenario(lambda e: self.linux(e, "scada-1"))
+
+        found = validation.validate(app)
+
+        assert any(
+            p.hostname == "scada-1" and p.fatal and "metadata.project" in p.message
+            for p in found
+        ), messages(found)
+
+    def test_unknown_value_is_reported(self, scenario):
+        app = scenario(lambda e: host(e, "opc-1").metadata.update(stack="ignition"))
+
+        found = validation.validate(app)
+
+        assert any(
+            p.hostname == "opc-1" and "stack" in p.message and "linux_fuxa" in p.message
+            for p in found
+        ), messages(found)
+
+    def test_influx_settings_are_strings(self, scenario):
+        app = scenario(lambda e: host(e, "hist-1").metadata.update(influx_org=["x"]))
+
+        found = validation.validate(app)
+
+        assert any("influx_org" in p.message for p in found), messages(found)
+
+    def test_non_modbus_rtu_behind_a_linux_opc_is_fatal(self, scenario):
+        # opc-1 polls rtu-1 and rtu-3, which speak dnp3
+        app = scenario(lambda e: self.linux(e, "opc-1"))
+
+        found = validation.validate(app)
+
+        assert any(
+            p.hostname == "opc-1" and p.fatal and "dnp3" in p.message for p in found
+        ), messages(found)
+
+    def test_no_modbus_rtus_warns(self, scenario):
+        def mutate(exp):
+            host(exp, "rtu-1").metadata.pop("dnp3")  # no protocol at all
+            host(exp, "opc-1").metadata.connected_rtus = ["rtu-1"]
+            self.linux(exp, "opc-1")
+
+        found = validation.validate(scenario(mutate))
+
+        assert [p.fatal for p in found if p.hostname == "opc-1"] == [False], messages(
+            found
+        )

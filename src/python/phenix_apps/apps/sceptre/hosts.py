@@ -7,6 +7,8 @@ merged host, the bare topology node, and the validation model.
 import re
 from typing import Any
 
+from phenix_apps.apps.sceptre.metadata import Stack
+
 
 def interfaces(host: Any) -> list[Any]:
     """A host's network interfaces, or [] if it has no topology node."""
@@ -29,6 +31,24 @@ def os_type(host: Any) -> str:
 
     topology = getattr(host, "topology", None) or host
     return getattr(getattr(topology, "hardware", None), "os_type", "")
+
+
+def stack(host: Any) -> str:
+    """The SCADA stack a host asks for, metadata.stack, or "" when it sets none."""
+
+    metadata = getattr(host, "metadata", None)
+    if isinstance(metadata, dict):
+        return str(metadata.get("stack") or "")
+    return str(getattr(metadata, "stack", None) or "")
+
+
+def is_linux_fuxa(host: Any) -> bool:
+    """Whether the app configures this host's SCADA role for the Linux FUXA stack.
+
+    The stack is metadata, not hardware.os_type: phenix only knows "linux" there.
+    """
+
+    return os_type(host) == "linux" and stack(host) == Stack.LINUX_FUXA
 
 
 def is_backup(hostname: str) -> bool:

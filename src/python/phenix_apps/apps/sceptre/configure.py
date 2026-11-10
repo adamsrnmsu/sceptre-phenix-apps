@@ -7,7 +7,7 @@ not exist yet.
 from typing import Final
 
 from phenix_apps.apps.sceptre import simulators
-from phenix_apps.apps.sceptre.hosts import os_type
+from phenix_apps.apps.sceptre.hosts import is_linux_fuxa, os_type
 from phenix_apps.apps.sceptre.metadata import Simulator
 from phenix_apps.apps.sceptre.stages import Stage, Steps
 from phenix_apps.common import error, utils
@@ -57,10 +57,42 @@ class ConfigureStage(Stage):
             )
         self.app.add_sceptre_startup_injects_windows(hostname)
 
+    def _linux_host(
+        self,
+        hostname: str,
+        name: str,
+        dst: str,
+        description: str,
+        permissions: str | None = None,
+    ) -> None:
+        """Inject one file a linux_fuxa host's pre-start wrote.
+
+        No startup scheduler: the image's own services read these files. <name>
+        is also the override name.
+        """
+
+        self.inject(
+            hostname,
+            self.sceptre_dir / hostname / name,
+            dst,
+            description,
+            permissions=permissions,
+            override=name,
+        )
+
     def opcs(self) -> None:
         """Inject the OPC config and TopServer startup script."""
 
         for opc in self.hosts("opc"):
+            if is_linux_fuxa(opc):
+                self._linux_host(
+                    opc.hostname,
+                    "opc_gateway.json",
+                    "/etc/sceptre/opc_gateway.json",
+                    "OPC UA gateway configuration",
+                )
+                continue
+
             # A HIL setup overrides opc.xml with a config listing real hardware.
             self._windows_host(
                 opc.hostname,
@@ -80,6 +112,15 @@ class ConfigureStage(Stage):
         """Inject the HMI startup script."""
 
         for hmi in self.hosts("hmi"):
+            if is_linux_fuxa(hmi):
+                self._linux_host(
+                    hmi.hostname,
+                    "hmi_url",
+                    "/etc/sceptre/hmi_url",
+                    "FUXA URL for the HMI browser",
+                )
+                continue
+
             self._windows_host(
                 hmi.hostname,
                 ("hmi.ps1", "/sceptre/startup/30-hmi.ps1", "HMI startup script"),
@@ -94,6 +135,21 @@ class ConfigureStage(Stage):
 
             if "metadata" not in scada_server:
                 logger.warning(f"No metadata for {host}")
+                continue
+
+            if is_linux_fuxa(scada_server):
+                self._linux_host(
+                    host,
+                    "fuxa_project.json",
+                    "/etc/sceptre/fuxa_project.json",
+                    "FUXA project",
+                )
+                self._linux_host(
+                    host,
+                    "hmi_url",
+                    "/etc/sceptre/hmi_url",
+                    "FUXA URL",
+                )
                 continue
 
             if "project" in scada_server.metadata:
@@ -131,6 +187,15 @@ class ConfigureStage(Stage):
         """Inject the PuTTY config and, if configured, the auto-connect script."""
 
         for eng in self.hosts("engineer-workstation"):
+            if is_linux_fuxa(eng):
+                self._linux_host(
+                    eng.hostname,
+                    "rtus.txt",
+                    "/etc/sceptre/rtus.txt",
+                    "Engineer workstation field device list",
+                )
+                continue
+
             files = [
                 (
                     "putty.ps1",
@@ -152,6 +217,22 @@ class ConfigureStage(Stage):
         """Inject the historian config and startup script."""
 
         for historian in self.hosts("historian"):
+            if is_linux_fuxa(historian):
+                self._linux_host(
+                    historian.hostname,
+                    "telegraf.conf",
+                    "/etc/telegraf/telegraf.conf",
+                    "Historian telegraf configuration",
+                )
+                self._linux_host(
+                    historian.hostname,
+                    "influx-setup.sh",
+                    "/etc/phenix/startup/influx-setup.sh",
+                    "Historian InfluxDB setup script",
+                    permissions="0744",
+                )
+                continue
+
             self._windows_host(
                 historian.hostname,
                 (

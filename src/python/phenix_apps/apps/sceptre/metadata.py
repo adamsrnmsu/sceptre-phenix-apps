@@ -61,6 +61,32 @@ class Simulator(StrEnum):
         return next((s for s in cls if s.lower() == (value or "").lower()), None)
 
 
+class Stack(StrEnum):
+    """SCADA stacks, as written in metadata.stack.
+
+    Unset means the Windows stack (TopServer, MyScada). It is metadata and not
+    hardware.os_type because phenix only accepts a fixed set of OS types there.
+    """
+
+    LINUX_FUXA = "linux_fuxa"
+
+
+# FUXA SCADA/HMI web UI port, and the OPC UA gateway's endpoint port.
+FUXA_PORT: Final[int] = 1881
+OPC_UA_PORT: Final[int] = 4840
+
+# Historian defaults for the Linux stack: the InfluxDB org, bucket, token and admin
+# password that influx-setup.sh creates and telegraf writes to. A lab default, not a
+# secret: set historian metadata influx_* to change them.
+INFLUX_ORG: Final[str] = "sceptre"
+INFLUX_BUCKET: Final[str] = "sceptre"
+INFLUX_TOKEN: Final[str] = "sceptre-historian-token"
+INFLUX_PASSWORD: Final[str] = "sceptre-admin-pass"
+# Telegraf's OPC UA input name (the measurement) and the FUXA project name.
+MEASUREMENT: Final[str] = "sceptre"
+FUXA_PROJECT: Final[str] = "sceptre"
+
+
 class Infrastructure(StrEnum):
     """Infrastructures, as written in metadata.infrastructure."""
 
