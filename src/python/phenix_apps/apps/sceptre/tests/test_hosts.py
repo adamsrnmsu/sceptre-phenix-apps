@@ -82,3 +82,41 @@ def test_works_on_the_validation_model_too():
 )
 def test_same_subnet_compares_the_first_three_octets(one, other, expected):
     assert hosts.same_subnet(one, other) is expected
+
+
+class TestStack:
+    """metadata.stack picks the Linux FUXA stack; hardware.os_type stays linux."""
+
+    def test_unset_is_empty_and_not_linux_fuxa(self):
+        host = node("opc", {"type": "opc"})
+
+        assert hosts.stack(host) == ""
+        assert hosts.is_linux_fuxa(host) is False
+
+    def test_linux_fuxa_on_a_linux_host(self):
+        host = node("opc", {"type": "opc", "stack": "linux_fuxa"})
+
+        assert hosts.stack(host) == "linux_fuxa"
+        assert hosts.is_linux_fuxa(host) is True
+
+    def test_a_windows_host_is_never_linux_fuxa(self):
+        host = node("opc", {"stack": "linux_fuxa"}, os_type="windows")
+
+        assert hosts.is_linux_fuxa(host) is False
+
+    def test_a_bare_topology_node_has_no_stack(self):
+        host = node("opc", {"stack": "linux_fuxa"})
+
+        assert hosts.stack(host.topology) == ""
+
+    def test_reads_the_validation_model(self):
+        model = validation.Host.model_validate(
+            {
+                "hostname": "opc",
+                "metadata": {"type": "opc", "stack": "linux_fuxa"},
+                "topology": {"hardware": {"os_type": "linux"}},
+            },
+            context={"problems": []},
+        )
+
+        assert hosts.stack(model) == "linux_fuxa"

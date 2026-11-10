@@ -29,10 +29,20 @@ from pydantic import (
     model_validator,
 )
 
-from phenix_apps.apps.sceptre import simulators
+from phenix_apps.apps.sceptre import lock_view, simulators
 from phenix_apps.apps.sceptre.configs.infrastructures import INFRASTRUCTURES
-from phenix_apps.apps.sceptre.hosts import describe_interfaces, is_backup, non_mgmt
-from phenix_apps.apps.sceptre.metadata import DEVICE_KEYS, Infrastructure, Simulator
+from phenix_apps.apps.sceptre.hosts import (
+    describe_interfaces,
+    is_backup,
+    non_mgmt,
+    os_type,
+)
+from phenix_apps.apps.sceptre.metadata import (
+    DEVICE_KEYS,
+    Infrastructure,
+    Simulator,
+    Stack,
+)
 from phenix_apps.common import error
 from phenix_apps.common.logger import logger
 
@@ -102,9 +112,16 @@ class Network(BaseModel):
     interfaces: list[Interface] = []
 
 
+class Hardware(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    os_type: str = ""
+
+
 class TopologyNode(BaseModel):
     model_config = ConfigDict(extra="allow")
 
+    hardware: Hardware = Hardware()
     network: Network = Network()
 
 
@@ -295,7 +312,23 @@ class FepMeta(FdServerMeta):
         host.flag_refs(ctx, "connected_rtus", self.connected_rtus, "fd_servers")
 
 
-class OpcMeta(Meta):
+class StackMeta(Meta):
+    """The SCADA-side hosts, which can ask for the Linux FUXA stack."""
+
+    stack: Stack | None = None
+
+    def check(self, host: "Host", ctx: Context) -> None:
+        super().check(host, ctx)
+
+        if self.stack and os_type(host) != "linux":
+            host.flag(
+                ctx,
+                f"metadata.stack '{self.stack}' needs hardware.os_type linux",
+                f"this host's os_type is '{os_type(host) or 'unset'}'",
+            )
+
+
+class OpcMeta(StackMeta):
     connected_rtus: list[str] | None = None
 
     def check(self, host: "Host", ctx: Context) -> None:
@@ -310,11 +343,29 @@ class OpcMeta(Meta):
         host.flag_refs(ctx, "connected_rtus", self.connected_rtus, "fd_servers")
 
 
-class ScadaMeta(Meta):
+class ScadaMeta(StackMeta):
     project: str | None = None
+    # linux_fuxa only: the FUXA project name, and the process view (lock_view.VIEWS);
+    # unset picks the animated lock when its tags exist, else a plain table.
+    fuxa_name: str | None = None
+    hmi_view: str | None = None
 
     def check(self, host: "Host", ctx: Context) -> None:
         super().check(host, ctx)
+
+        if self.hmi_view and self.hmi_view not in lock_view.VIEWS:
+            host.flag(
+                ctx,
+                f"metadata.hmi_view '{self.hmi_view}' is not a known view",
+                f"one of: {', '.join(lock_view.VIEWS)}",
+            )
+        if self.stack and self.project:
+            host.flag(
+                ctx,
+                "metadata.project is a Windows MyScada file and cannot be "
+                f"combined with metadata.stack '{self.stack}'",
+                "unset metadata.project (and metadata.automation) for this host",
+            )
 
         # A supplied project skips the autoproject path, and with it these.
         if self.project:
@@ -327,7 +378,7 @@ class ScadaMeta(Meta):
             )
 
 
-class HmiMeta(Meta):
+class HmiMeta(StackMeta):
     connected_scadas: list[str] | None = None
 
     def check(self, host: "Host", ctx: Context) -> None:
@@ -336,7 +387,7 @@ class HmiMeta(Meta):
         host.flag_refs(ctx, "connected_scadas", self.connected_scadas, "scadas")
 
 
-class EngineerMeta(Meta):
+class EngineerMeta(StackMeta):
     connected_rtus: list[str] | None = None
 
     def check(self, host: "Host", ctx: Context) -> None:
@@ -345,8 +396,15 @@ class EngineerMeta(Meta):
         host.flag_refs(ctx, "connected_rtus", self.connected_rtus, "fd_servers")
 
 
-class HistorianMeta(Meta):
+class HistorianMeta(StackMeta):
     primary: str | None = None
+    # The Linux stack's InfluxDB; unset means the defaults in metadata.py.
+    influx_org: str | None = None
+    influx_bucket: str | None = None
+    influx_token: str | None = None
+    influx_password: str | None = None
+    # Telegraf's OPC UA input name; unset means the default in metadata.py.
+    measurement: str | None = None
 
     def check(self, host: "Host", ctx: Context) -> None:
         super().check(host, ctx)
@@ -491,6 +549,8 @@ class Scenario(BaseModel):
                 )
             )
 
+        self._check_linux_fuxa_opcs(ctx)
+
         # The autoproject path needs a primary OPC to point the SCADA server at.
         if not any(
             h.metadata.type == "opc" and not is_backup(h.hostname) and non_mgmt(h)
@@ -506,6 +566,46 @@ class Scenario(BaseModel):
                         "app treats as a backup; at least one must be a primary",
                     )
         return self
+
+    def _check_linux_fuxa_opcs(self, ctx: Context) -> None:
+        """The OPC UA gateway on the Linux stack speaks Modbus TCP only."""
+
+        rtus = {
+            h.hostname: h
+            for h in self.hosts
+            if isinstance(h.metadata, FdServerMeta)
+            and h.metadata.type in ("fd-server", "fep")
+        }
+        for opc in self.hosts:
+            if not (
+                isinstance(opc.metadata, OpcMeta)
+                and opc.metadata.stack == Stack.LINUX_FUXA
+            ):
+                continue
+
+            names = opc.metadata.connected_rtus
+            polled = [rtus[n] for n in names if n in rtus] if names else rtus.values()
+            modbus = 0
+            for rtu in polled:
+                for key, field in PROTOCOL_FIELDS.items():
+                    if not getattr(rtu.metadata, field):
+                        continue
+                    if key == "modbus":
+                        modbus += 1
+                    else:
+                        opc.flag(
+                            ctx,
+                            f"{rtu.hostname} uses {key}, which the linux_fuxa "
+                            "OPC UA gateway cannot poll",
+                            "the gateway speaks modbus only; "
+                            "remove it from connected_rtus",
+                        )
+            if not modbus:
+                opc.flag(
+                    ctx,
+                    "no modbus field devices to poll; the gateway config will be empty",
+                    fatal=False,
+                )
 
 
 # Malformed input never reaches check(); pydantic rejects it first. These turn

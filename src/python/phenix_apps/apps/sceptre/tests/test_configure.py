@@ -249,3 +249,100 @@ class TestHelics:
 
         script = open(f"{sceptre_app.startup_dir}/broker-1-helics.sh").read()
         assert "-f 3" in script
+
+
+FUXA = {"stack": "linux_fuxa"}
+
+WINDOWS_DSTS = (
+    "Users/wwuser/Documents/Configs/Inject/opc.xml",
+    "/sceptre/startup/30-topserver.ps1",
+    "/sceptre/startup/30-hmi.ps1",
+    "/sceptre/startup/30-scada.ps1",
+    "Users/wwuser/Documents/Configs/Inject/myscada.mep",
+    "/sceptre/startup/30-putty.ps1",
+    "/sceptre/startup/30-historian.ps1",
+)
+
+
+class TestLinuxFuxa:
+    """Every injection a linux_fuxa host declares, and none of the Windows ones."""
+
+    @pytest.mark.parametrize(
+        ("method", "metadata", "expected"),
+        [
+            (
+                "opcs",
+                {"type": "opc"},
+                {"/etc/sceptre/opc_gateway.json": "opc_gateway.json"},
+            ),
+            ("hmis", {"type": "hmi"}, {"/etc/sceptre/hmi_url": "hmi_url"}),
+            (
+                "scada_servers",
+                {"type": "scada-server"},
+                {
+                    "/etc/sceptre/fuxa_project.json": "fuxa_project.json",
+                    "/etc/sceptre/hmi_url": "hmi_url",
+                },
+            ),
+            (
+                "engineer_workstations",
+                {"type": "engineer-workstation"},
+                {"/etc/sceptre/rtus.txt": "rtus.txt"},
+            ),
+            (
+                "historians",
+                {"type": "historian"},
+                {
+                    "/etc/telegraf/telegraf.conf": "telegraf.conf",
+                    "/etc/phenix/startup/influx-setup.sh": "influx-setup.sh",
+                },
+            ),
+        ],
+    )
+    def test_injects_exactly_the_role_files(
+        self, sceptre_app, method, metadata, expected
+    ):
+        sceptre_app.extract_nodes_type.return_value = [node("h1", {**metadata, **FUXA})]
+
+        getattr(ConfigureStage(sceptre_app), method)()
+
+        assert injects(sceptre_app) == {
+            dst: f"{sceptre_app.sceptre_dir}/h1/{name}"
+            for dst, name in expected.items()
+        }
+
+    def test_overrides_are_looked_up_by_file_name(self, sceptre_app):
+        sceptre_app.extract_nodes_type.return_value = [
+            node("opc-1", {"type": "opc", **FUXA})
+        ]
+        sceptre_app.find_override.side_effect = lambda name: (
+            {"src": f"/assets/{name}"} if name == "opc-1_opc_gateway.json" else None
+        )
+
+        ConfigureStage(sceptre_app).opcs()
+
+        assert injects(sceptre_app) == {
+            "/etc/sceptre/opc_gateway.json": "/assets/opc-1_opc_gateway.json"
+        }
+
+    def test_the_influx_script_is_executable(self, sceptre_app):
+        sceptre_app.extract_nodes_type.return_value = [
+            node("hist", {"type": "historian", **FUXA})
+        ]
+
+        ConfigureStage(sceptre_app).historians()
+
+        by_dst = {
+            c.kwargs["inject"]["dst"]: c.kwargs["inject"]
+            for c in sceptre_app.add_inject.call_args_list
+        }
+        assert by_dst["/etc/phenix/startup/influx-setup.sh"]["permissions"] == "0744"
+
+    def test_a_windows_host_keeps_its_windows_injects(self, sceptre_app):
+        sceptre_app.extract_nodes_type.return_value = [
+            node("opc-1", {"type": "opc"}, os_type="windows")
+        ]
+
+        ConfigureStage(sceptre_app).opcs()
+
+        assert set(WINDOWS_DSTS[:2]) <= set(injects(sceptre_app))
