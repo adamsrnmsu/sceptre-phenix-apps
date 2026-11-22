@@ -1,3 +1,7 @@
+# Backgrounded: phenix-start.sh runs the startup scripts one after another, each to
+# completion, so waiting here for the server would hold every later script (the
+# sceptre-start.sh that starts the field device) until the Caldera server answers.
+(
 server="http://${addr}:8888"
 
 until curl --output /dev/null --silent --fail $server ; do
@@ -10,3 +14,4 @@ agent=$(curl -svkOJ -X POST -H "file:sandcat.go" -H "platform:linux" $server/fil
 nohup ./$agent -server $server &
 
 echo "Sandcat agent started"
+) &

